@@ -1,6 +1,6 @@
 {
     "java.project.referencedLibraries": [
         "lib/**/*.jar",
-        "c:\\e-bossy\\S4\\Web Dyn\\hello-spring\\lib\\jakarta.servlet-api-6.1.0-M2.jar"
+        "c:\\xampp\\tomcat\\lib\\servlet-api.jar"
     ]
 }

@@ -12,6 +12,12 @@ import java.util.List;
 public class FrontControllerServlet extends HttpServlet {
     private List<String> urls = new ArrayList<>();
 
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+    }
+
+    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = request.getRequestURI();

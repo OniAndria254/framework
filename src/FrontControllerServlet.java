@@ -1,4 +1,4 @@
-package mg.itu.prom16;
+package mg.itu.prom16.controller;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -14,13 +14,6 @@ public class FrontControllerServlet extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
-    }
-
-    
-    
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = request.getRequestURI();
         urls.add(url); // Ajouter l'URL à la liste
 
@@ -32,5 +25,15 @@ public class FrontControllerServlet extends HttpServlet {
             out.println("<p>" + u + "</p>");
         }
         out.println("</body></html>");
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        processRequest(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        processRequest(request, response);
     }
 }

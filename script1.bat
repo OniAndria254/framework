@@ -1,21 +1,18 @@
-#!/bin/bash
+set src_dir=C:/e-bossy/S4/Web Dyn/framework/framework/src
+set temp_src=C:/e-bossy/S4/Web Dyn/framework/framework/temp-src
 
-# Chemin vers le répertoire contenant le servlet
-SERVLET_DIR="C:/e-bossy/S4/Web Dyn/framework/framework/src"
+set bin_dir=C:/e-bossy/S4/Web Dyn/framework/framework/bin
+set lib_dir=C:/e-bossy/S4/Web Dyn/framework/framework/lib
+set work_dir=C:/e-bossy/S4/Web Dyn/framework/framework
 
-# Chemin vers le répertoire de sortie pour le fichier .jar
-OUTPUT_DIR="C:/e-bossy/S4/Web Dyn/framework/framework/lib"
+mkdir "%temp_dir%"
+mkdir "%temp_src%"
 
-# Nom du fichier .jar
-JAR_NAME="MyServlet.jar"
+FOR /R "%src_dir%" %%F IN (*.java) DO (
+    copy "%%F" "%temp_src%"
+)
 
-# Compilation du servlet
-echo "Compiling servlet..."
-javac -d $OUTPUT_DIR $SERVLET_DIR/*.java
+cd "%temp_src%"
+javac -sourcepath "%temp_src%" -d "%bin_dir%" -cp "%lib_dir%/*" *.java
 
-# Création du fichier .jar
-echo "Creating .jar file..."
-cd $OUTPUT_DIR
-jar cvf $JAR_NAME *
-
-echo "Servlet compiled and .jar file created successfully."
+jar -cvf "%work_dir%/myServlet.jar" -C "%bin_dir%" . 

@@ -9,53 +9,80 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import mg.itu.prom16.annotation.*;
+import mg.itu.prom16.model.*;
 
 public class FrontControllerServlet extends HttpServlet {
-    public boolean checked;
-    public List<String> classNames = new ArrayList<>();
+    private HashMap<String, Mapping> hashMap = new HashMap<>();
 
-        /**
-     * Vérifie si une classe est annotée avec une annotation spécifique.
-     *
-     * @param clazz La classe à vérifier.
-     * @param annotation La classe de l'annotation à chercher.
-     * @return true si la classe est annotée avec l'annotation spécifiée, false sinon.
-     */
+    @Override
+    public void init() throws ServletException {
+        super.init(); // Appeler la méthode init de la superclasse HttpServlet
+
+        // Initialisation du HashMap
+        initialisation();
+    }
+
     private boolean hasAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
         return clazz.isAnnotationPresent(annotation);
     }
 
+    protected String getURLSplit(String str) {
+        String[] string = str.split("/");
+        return string[4];
+    }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        String requestURI = request.getRequestURL().toString();
-        PrintWriter printWriter = response.getWriter();
+    private void initialisation() {
+        // Récupération des classes et méthodes annotées
         String packageName = getServletContext().getInitParameter("controllerPackage");
         List<Class<?>> classes = FrontControllerServlet.getClasses(packageName);
         System.out.println(classes.size());
-        if (checked==false) {
-            for (int j = 0; j < classes.size(); j++) {
-                if(this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
-                    classNames.add(classes.get(j).getName());
+
+        for (int j = 0; j < classes.size(); j++) {
+            if (this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
+                Method[] methods = classes.get(j).getMethods();
+                for (Method method : methods) {
+                    if (method.isAnnotationPresent(Get.class)) {
+                        String url = method.getAnnotation(Get.class).value();
+                        String className = classes.get(j).getName();
+                        String methodName = method.getName();
+
+                        // Création d'une instance de Mapping et ajout au HashMap
+                        Mapping mapping = new Mapping(className, methodName);
+                        hashMap.put(url, mapping);
+                    }
                 }
             }
-            checked=true;
         }
-        printClasses(printWriter, classNames);
-        // printWriter.println(requestURI);
+    }
+    
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        PrintWriter printWriter = response.getWriter();
+        String url = request.getRequestURL().toString();
+        String lastPart = getURLSplit(url);
+
+        // Vérification si l'URL existe dans le HashMap
+        if (hashMap.containsKey(lastPart)) {
+            Mapping mapping = hashMap.get(lastPart);
+            printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+        } else {
+            printWriter.println("URL non existante");
+        }
     }
 
-    private void printClasses(PrintWriter printWriter, List<String> list) {
-        for (int i = 0; i < list.size(); i++) {
-            printWriter.println(list.get(i));
-        }
-    }
+    // private void printClasses(PrintWriter printWriter, List<String> list) {
+    //     for (int i = 0; i < list.size(); i++) {
+    //         printWriter.println(list.get(i));
+    //     }
+    // }
 
     public static List<Class<?>> getClasses(String packageName) {
         List<Class<?>> classes = new ArrayList<>();

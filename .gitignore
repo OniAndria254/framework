@@ -1,5 +1,6 @@
 temp-src/
 .vscode/
 bin/
+bin/mg/itu/prom16/controller
 lib/
 myservlet.jar

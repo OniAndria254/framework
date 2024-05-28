@@ -15,7 +15,7 @@ public class Mapping {
         this.classe = classe;
     }
     public String getMethode() {
-        return methode;
+        return methode; 
     }
     public void setMethode(String methode) {
         this.methode = methode;

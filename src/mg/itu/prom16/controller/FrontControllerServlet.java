@@ -73,6 +73,21 @@ public class FrontControllerServlet extends HttpServlet {
         if (hashMap.containsKey(lastPart)) {
             Mapping mapping = hashMap.get(lastPart);
             printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+
+            // Récupération de l'instance de la classe du contrôleur
+            try {
+                Class<?> controllerClass = Class.forName(mapping.getClasse());
+                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+
+                // Récupération de la méthode à invoquer
+                Method method = controllerClass.getMethod(mapping.getMethode());
+                // Invocation de la méthode
+                Object result = method.invoke(controllerInstance);
+                printWriter.println((String)result);
+            } catch (Exception e) {
+                printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
+                e.printStackTrace();
+            }
         } else {
             printWriter.println("URL non existante");
         }

@@ -1,5 +1,6 @@
 package mg.itu.prom16.controller;
 
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +16,7 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import mg.itu.prom16.annotation.*;
 import mg.itu.prom16.model.*;
@@ -65,33 +67,55 @@ public class FrontControllerServlet extends HttpServlet {
     
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException {
-        PrintWriter printWriter = response.getWriter();
-        String url = request.getRequestURL().toString();
-        String lastPart = getURLSplit(url);
+    PrintWriter printWriter = response.getWriter();
+    String url = request.getRequestURL().toString();
+    String lastPart = getURLSplit(url); // Assurez-vous que cette méthode est définie ailleurs
 
-        // Vérification si l'URL existe dans le HashMap
-        if (hashMap.containsKey(lastPart)) {
-            Mapping mapping = hashMap.get(lastPart);
-            printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+    // Vérification si l'URL existe dans le HashMap
+    if (hashMap.containsKey(lastPart)) {
+        Mapping mapping = hashMap.get(lastPart);
+        printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
 
-            // Récupération de l'instance de la classe du contrôleur
-            try {
-                Class<?> controllerClass = Class.forName(mapping.getClasse());
-                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+        // Récupération de l'instance de la classe du contrôleur
+        try {
+            Class<?> controllerClass = Class.forName(mapping.getClasse());
+            Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-                // Récupération de la méthode à invoquer
-                Method method = controllerClass.getMethod(mapping.getMethode());
-                // Invocation de la méthode
-                Object result = method.invoke(controllerInstance);
-                printWriter.println((String)result);
-            } catch (Exception e) {
-                printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
-                e.printStackTrace();
+            // Récupération de la méthode à invoquer
+            Method method = controllerClass.getMethod(mapping.getMethode());
+            // Invocation de la méthode
+            Object result = method.invoke(controllerInstance);
+
+            // Traitement spécifique selon le type de données retourné par la méthode @Get
+            if (result instanceof String) {
+                printWriter.println(result);
+            } else if (result instanceof ModelView) {
+                ModelView modelView = (ModelView) result;
+                // Extrait de l'URL du ModelView
+                String targetUrl = modelView.getUrl();
+                // Redirection vers l'URL cible avec les données comme attributs de requête
+                RequestDispatcher dispatcher = request.getRequestDispatcher(targetUrl);
+                for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
+                    // Convertir la clé en chaîne de caractères pour l'utilisation avec request.setAttribute
+                    String attributeName = entry.getKey(); // La clé est déjà une chaîne de caractères
+                    Object attributeValue = entry.getValue(); // La valeur reste l'objet
+
+                    // Utiliser setAttribute pour chaque entrée du HashMap
+                    request.setAttribute(attributeName, attributeValue);
+}
+                dispatcher.forward(request, response);
+            } else {
+                printWriter.println("Non reconnu");
             }
-        } else {
-            printWriter.println("URL non existante");
+        } catch (Exception e) {
+            printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
+            e.printStackTrace();
         }
+    } else {
+        printWriter.println("URL non existante");
     }
+}
+
 
     // private void printClasses(PrintWriter printWriter, List<String> list) {
     //     for (int i = 0; i < list.size(); i++) {

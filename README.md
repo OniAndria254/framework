@@ -9,4 +9,5 @@ copier myServlet.jar du framework au lib de votre projet
 
 Annoter votre Controller avec @MyControllerAnnotation
 
-Annoter vos méthodes avec @Get("list") où list est l'url passé après le nom du projet
+Annoter vos méthodes avec @Get("/emp/list") où "/emp/list" est l'url passé après le nom du projet
+Ces méthodes auront pour type de retour String ou ModelView(qui contient l'url de redirection et les données à afficher)

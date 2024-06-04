@@ -1,14 +1,18 @@
 package mg.itu.prom16.model;
 
+import java.io.Serializable;
 import java.util.HashMap;
 
 public class ModelView {
-    String url;
-    HashMap<String, Object> data;   
+    private String url;
+    private HashMap<String, Object> data = new HashMap<>();   
     
     public ModelView(String url, HashMap<String, Object> data) {
         this.url = url;
         this.data = data;
+    }
+
+    public ModelView() {
     }
 
     public ModelView(String url) {

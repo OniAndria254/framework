@@ -23,22 +23,17 @@ import mg.itu.prom16.model.*;
 
 public class FrontControllerServlet extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
+    private ArrayList<String> exceptions = new ArrayList<>();
 
     @Override
     public void init() throws ServletException {
         super.init(); // Appeler la méthode init de la superclasse HttpServlet
-
         // Initialisation du HashMap
         initialisation();
     }
 
     private boolean hasAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
         return clazz.isAnnotationPresent(annotation);
-    }
-
-    protected String getURLSplit(String str) {
-        String[] string = str.split("/");
-        return string[4];
     }
 
     private void initialisation() {
@@ -58,6 +53,9 @@ public class FrontControllerServlet extends HttpServlet {
 
                         // Création d'une instance de Mapping et ajout au HashMap
                         Mapping mapping = new Mapping(className, methodName);
+                        if(hashMap.containsKey(url)) {
+                            exceptions.add("Duplication d'url");
+                        }
                         hashMap.put(url, mapping);
                     }
                 }
@@ -66,56 +64,59 @@ public class FrontControllerServlet extends HttpServlet {
     }
     
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-    throws ServletException, IOException {
-    PrintWriter printWriter = response.getWriter();
-    String requestURI = request.getRequestURI();
-    String contextPath= request.getContextPath();
-    String url = requestURI.substring(contextPath.length());
-    // String lastPart = getURLSplit(url); // Assurez-vous que cette méthode est définie ailleurs
+        throws ServletException, IOException {
+        PrintWriter printWriter = response.getWriter();
+        String requestURI = request.getRequestURI();
+        String contextPath= request.getContextPath();
+        String url = requestURI.substring(contextPath.length());
+        // String lastPart = getURLSplit(url); // Assurez-vous que cette méthode est définie ailleurs
 
-    // Vérification si l'URL existe dans le HashMap
-    if (hashMap.containsKey(url)) {
-        Mapping mapping = hashMap.get(url);
-        printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+        // Vérification si l'URL existe dans le HashMap
+        if (hashMap.containsKey(url)) {
+            Mapping mapping = hashMap.get(url);
+            printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
 
-        // Récupération de l'instance de la classe du contrôleur
-        try {
-            Class<?> controllerClass = Class.forName(mapping.getClasse());
-            Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+            // Récupération de l'instance de la classe du contrôleur
+            try {
+                Class<?> controllerClass = Class.forName(mapping.getClasse());
+                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-            // Récupération de la méthode à invoquer
-            Method method = controllerClass.getMethod(mapping.getMethode());
-            // Invocation de la méthode
-            Object result = method.invoke(controllerInstance);
+                // Récupération de la méthode à invoquer
+                Method method = controllerClass.getMethod(mapping.getMethode());
+                // Invocation de la méthode
+                Object result = method.invoke(controllerInstance);
 
-            // Traitement spécifique selon le type de données retourné par la méthode @Get
-            if (result instanceof String) {
-                printWriter.println(result);
-            } else if (result instanceof ModelView) {
-                ModelView modelView = (ModelView) result;
-                // Extrait de l'URL du ModelView
-                String targetUrl = modelView.getUrl();
-                // Redirection vers l'URL cible avec les données comme attributs de requête
-                RequestDispatcher dispatcher = request.getRequestDispatcher(targetUrl);
-                for (String key : modelView.getData().keySet()) {
-                    // Convertir la clé en chaîne de caractères pour l'utilisation avec request.setAttribute
-                    Object attributeValue =modelView.getData().get(key); // La valeur reste l'objet
+                // Traitement spécifique selon le type de données retourné par la méthode @Get
+                if (result instanceof String) {
+                    printWriter.println(result);
+                } else if (result instanceof ModelView) {
+                    ModelView modelView = (ModelView) result;
+                    // Extrait de l'URL du ModelView
+                    String targetUrl = modelView.getUrl();
+                    // Redirection vers l'URL cible avec les données comme attributs de requête
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(targetUrl);
+                    for (String key : modelView.getData().keySet()) {
+                        // Convertir la clé en chaîne de caractères pour l'utilisation avec request.setAttribute
+                        Object attributeValue =modelView.getData().get(key); // La valeur reste l'objet
 
-                    // Utiliser setAttribute pour chaque entrée du HashMap
-                    request.setAttribute(key, attributeValue);
+                        // Utiliser setAttribute pour chaque entrée du HashMap
+                        request.setAttribute(key, attributeValue);
+                    }
+                    dispatcher.forward(request, response);
+                } else {
+                    exceptions.add("Type de retour non-gere");
                 }
-                dispatcher.forward(request, response);
-            } else {
-                printWriter.println("Non reconnu");
+            } catch (Exception e) {
+                printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getCause());
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getCause());
-            e.printStackTrace();
+        } else {
+            exceptions.add("URL non existante");
         }
-    } else {
-        printWriter.println("URL non existante");
+        for (String string : exceptions) {
+            printWriter.println(string);
+        }
     }
-}
 
 
     // private void printClasses(PrintWriter printWriter, List<String> list) {

@@ -23,12 +23,13 @@ import mg.itu.prom16.model.*;
 
 public class FrontControllerServlet extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
-    private ArrayList<String> exceptions = new ArrayList<>();
+    private ArrayList<String> exceptions;
 
     @Override
     public void init() throws ServletException {
         super.init(); // Appeler la méthode init de la superclasse HttpServlet
         // Initialisation du HashMap
+        exceptions = new ArrayList<>();
         initialisation();
     }
 
@@ -41,6 +42,11 @@ public class FrontControllerServlet extends HttpServlet {
         String packageName = getServletContext().getInitParameter("controllerPackage");
         List<Class<?>> classes = FrontControllerServlet.getClasses(packageName);
         System.out.println(classes.size());
+
+        if (classes.size()==0) {
+            exceptions.add("Package vide");
+            return;
+        }
 
         for (int j = 0; j < classes.size(); j++) {
             if (this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
@@ -114,6 +120,7 @@ public class FrontControllerServlet extends HttpServlet {
             exceptions.add("URL non existante");
         }
         for (String string : exceptions) {
+            // print
             printWriter.println(string);
         }
     }

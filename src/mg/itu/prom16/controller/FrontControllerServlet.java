@@ -23,29 +23,28 @@ import mg.itu.prom16.model.*;
 
 public class FrontControllerServlet extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
-    private ArrayList<String> exceptions;
 
     @Override
     public void init() throws ServletException {
         super.init(); // Appeler la méthode init de la superclasse HttpServlet
-        // Initialisation du HashMap
-        exceptions = new ArrayList<>();
-        initialisation();
+        try {
+            initialisation();
+        } catch (Exception e) {
+            throw new ServletException(e.getMessage());
+        }
     }
 
     private boolean hasAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
         return clazz.isAnnotationPresent(annotation);
     }
 
-    private void initialisation() {
+    private void initialisation() throws Exception {
         // Récupération des classes et méthodes annotées
         String packageName = getServletContext().getInitParameter("controllerPackage");
         List<Class<?>> classes = FrontControllerServlet.getClasses(packageName);
-        System.out.println(classes.size());
 
         if (classes.size()==0) {
-            exceptions.add("Package vide");
-            return;
+            throw new ServletException("Package vide ou inexistant");
         }
 
         for (int j = 0; j < classes.size(); j++) {
@@ -60,7 +59,7 @@ public class FrontControllerServlet extends HttpServlet {
                         // Création d'une instance de Mapping et ajout au HashMap
                         Mapping mapping = new Mapping(className, methodName);
                         if(hashMap.containsKey(url)) {
-                            exceptions.add("Duplication d'url");
+                            throw new ServletException("Duplication d'url");
                         }
                         hashMap.put(url, mapping);
                     }
@@ -80,7 +79,6 @@ public class FrontControllerServlet extends HttpServlet {
         // Vérification si l'URL existe dans le HashMap
         if (hashMap.containsKey(url)) {
             Mapping mapping = hashMap.get(url);
-            printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
 
             // Récupération de l'instance de la classe du contrôleur
             try {
@@ -94,6 +92,7 @@ public class FrontControllerServlet extends HttpServlet {
 
                 // Traitement spécifique selon le type de données retourné par la méthode @Get
                 if (result instanceof String) {
+                    printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
                     printWriter.println(result);
                 } else if (result instanceof ModelView) {
                     ModelView modelView = (ModelView) result;
@@ -110,18 +109,13 @@ public class FrontControllerServlet extends HttpServlet {
                     }
                     dispatcher.forward(request, response);
                 } else {
-                    exceptions.add("Type de retour non-gere");
+                    throw new ServletException("Type de retour non-géré");
                 }
             } catch (Exception e) {
-                printWriter.println("Erreur lors de l'invoquation de la méthode: " + e.getCause());
-                e.printStackTrace();
+                throw new ServletException("Type de retour non-géré");
             }
         } else {
-            exceptions.add("URL non existante");
-        }
-        for (String string : exceptions) {
-            // print
-            printWriter.println(string);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
@@ -132,7 +126,7 @@ public class FrontControllerServlet extends HttpServlet {
     //     }
     // }
 
-    public static List<Class<?>> getClasses(String packageName) {
+    public static List<Class<?>> getClasses(String packageName) throws Exception{
         List<Class<?>> classes = new ArrayList<>();
         URL path = Thread.currentThread().getContextClassLoader().getResource(packageName.replace('.', File.separatorChar));
         if (path == null) {
@@ -148,8 +142,7 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         if (!directory.exists()) {
-            System.err.println("Directory not found: " + directory.getAbsolutePath());
-            return classes;
+            throw new ServletException("Package inexistant");
         }
 
         collectClasses(packageName, directory, classes);

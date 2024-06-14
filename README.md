@@ -11,3 +11,8 @@ Annoter votre Controller avec @MyControllerAnnotation
 
 Annoter vos méthodes avec @Get("/emp/list") où "/emp/list" est l'url passé après le nom du projet
 Ces méthodes auront pour type de retour String ou ModelView(qui contient l'url de redirection et les données à afficher)
+
+Pour les méthodes de votre controller utilisant ayant des parametres(Cas de formulaire):
+Soit:
+    - Utiliser le meme nom que le input
+    - Annoter le parametre avec @Param(paramName = "exampleName") où exampleName est le name du input

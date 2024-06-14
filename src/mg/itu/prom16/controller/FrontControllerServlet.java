@@ -10,7 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
@@ -85,10 +85,40 @@ public class FrontControllerServlet extends HttpServlet {
                 Class<?> controllerClass = Class.forName(mapping.getClasse());
                 Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-                // Récupération de la méthode à invoquer
-                Method method = controllerClass.getMethod(mapping.getMethode());
+                // Récupération de toutes les méthodes déclarées dans la classe
+                Method[] declaredMethods = controllerClass.getDeclaredMethods();
+
+                Method vraiMethod = null;
+                // Vérification si une méthode avec le nom spécifié existe
+                for (Method method : declaredMethods) {
+                    if (method.getName().equals(mapping.getMethode())) {
+                        vraiMethod = method;
+                        break;
+                    }
+                }
+                Parameter[] parameters = vraiMethod.getParameters();
+                Object[] args = new Object[parameters.length];
+
+                ArrayList<String> parameterNames = new ArrayList<String>();
+                String paramValue = null;
+                // System.out.println(parameters.length);
+                for (int i = 0; i < parameters.length; i++) {
+                    Parameter parameter = parameters[i];
+                    parameterNames.add(parameter.getName());
+    
+                    if (parameter.isAnnotationPresent(Param.class)) {
+                        Param annotation = parameter.getAnnotation(Param.class);
+                        paramValue = request.getParameter(annotation.paramName());
+                        args[i] = paramValue;
+                    }
+                    else {
+                        paramValue = request.getParameter(parameter.getName());
+                        args[i] = paramValue;
+                        System.out.println(parameter.getName());
+                    }
+                }
                 // Invocation de la méthode
-                Object result = method.invoke(controllerInstance);
+                Object result = vraiMethod.invoke(controllerInstance, args);
 
                 // Traitement spécifique selon le type de données retourné par la méthode @Get
                 if (result instanceof String) {
@@ -160,7 +190,7 @@ public class FrontControllerServlet extends HttpServlet {
             }
             else if(file.getName().endsWith(".class"))
             {
-                System.out.println("Error");
+                System.out.println("Errordavjhbojb");
                 try {
                     String className = packageName + '.' + file.getName().substring(0, file.getName().length()-6);
                     classes.add(Class.forName(className));

@@ -99,19 +99,22 @@ public class FrontControllerServlet extends HttpServlet {
                 Parameter[] parameters = vraiMethod.getParameters();
                 Object[] args = new Object[parameters.length];
 
+                ArrayList<String> parameterNames = new ArrayList<String>();
+                String paramValue = null;
                 // System.out.println(parameters.length);
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
-                    String paramName = parameter.getName();
-                    
-                    // Récupérer la valeur du paramètre de la requête
-                    String paramValue = request.getParameter(paramName);
-                    
-                    // Vérifier si le paramètre existe
-                    if (paramValue!= null) {
+                    parameterNames.add(parameter.getName());
+    
+                    if (parameter.isAnnotationPresent(Param.class)) {
+                        Param annotation = parameter.getAnnotation(Param.class);
+                        paramValue = request.getParameter(annotation.paramName());
                         args[i] = paramValue;
-                    } else {
-                        
+                    }
+                    else {
+                        paramValue = request.getParameter(parameter.getName());
+                        args[i] = paramValue;
+                        System.out.println(parameter.getName());
                     }
                 }
                 // Invocation de la méthode

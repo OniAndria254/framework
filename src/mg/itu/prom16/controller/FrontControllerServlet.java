@@ -14,6 +14,7 @@ import java.lang.reflect.*;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,25 +97,61 @@ public class FrontControllerServlet extends HttpServlet {
                         break;
                     }
                 }
+
                 Parameter[] parameters = vraiMethod.getParameters();
                 Object[] args = new Object[parameters.length];
 
-                ArrayList<String> parameterNames = new ArrayList<String>();
+                ArrayList<String> parameterNames = new ArrayList<>();
                 String paramValue = null;
-                // System.out.println(parameters.length);
+
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
                     parameterNames.add(parameter.getName());
-    
-                    if (parameter.isAnnotationPresent(Param.class)) {
-                        Param annotation = parameter.getAnnotation(Param.class);
-                        paramValue = request.getParameter(annotation.paramName());
+
+                    if (Utility.isPrimitive(parameter.getType())) {
+                        paramValue = request.getParameter(parameter.getName());
+                        // System.out.print("String: " + parameter.getName());
                         args[i] = paramValue;
+                        // Vérifier si l'annotation Param est présente
+                        if (parameter.isAnnotationPresent(Param.class)) {
+                            Param annotation = parameter.getAnnotation(Param.class);
+                            // Utiliser le nom spécifié dans l'annotation pour récupérer la valeur de la requête
+                            paramValue = request.getParameter(annotation.paramName());
+                            args[i] = paramValue;
+                        }
                     }
                     else {
-                        paramValue = request.getParameter(parameter.getName());
-                        args[i] = paramValue;
-                        System.out.println(parameter.getName());
+                        if (parameter.isAnnotationPresent(Param.class)) {
+                            // Vérifier si le paramètre est un objet
+                            Class<?> parameterType = parameter.getType();
+                                                                    
+                            Object obj = parameterType.getDeclaredConstructor().newInstance();
+                            Field[] fields = obj.getClass().getDeclaredFields();
+                            Method[] methods = obj.getClass().getDeclaredMethods();
+
+                            for (Field field : fields) {
+                                // System.out.println(parameter.getAnnotation(Param.class).paramName() + "." + field.getName());
+                                Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
+                                setObjectField(obj, methods, field, value);
+                            }
+                            args[i] = obj;
+                        }
+                        else {
+                            // Vérifier si le paramètre est un objet
+                            Class<?> parameterType = parameter.getType();
+                                                                    
+                            Object obj = parameterType.getDeclaredConstructor().newInstance();
+                            Field[] fields = obj.getClass().getDeclaredFields();
+                            Method[] methods = obj.getClass().getDeclaredMethods();
+
+                            for (Field field : fields) {
+                                // System.out.println(parameter.getName() + "." + field.getName());
+                                Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
+                                setObjectField(obj, methods, field, value);
+                            }
+                            args[i] = obj;
+                        }
+                        
                     }
                 }
                 // Invocation de la méthode
@@ -142,13 +179,26 @@ public class FrontControllerServlet extends HttpServlet {
                     throw new ServletException("Type de retour non-géré");
                 }
             } catch (Exception e) {
-                throw new ServletException("Type de retour non-géré");
+                throw new ServletException(e.getCause() + " ;" + e.getMessage());
             }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
+    public static Object setObjectField(Object obj, Method[] methods, Field field, Object value) throws Exception {
+        String setterMethod = "set" + Utility.capitalize(field.getName());
+
+        for (Method method : methods) {
+            if (!method.getName().equals(setterMethod)) {
+                continue;
+            }   
+            return method.invoke(obj, value);
+        }
+        throw new Exception("Aucun setter trouvé pour l'attribut: " + field.getName());
+    }
+
+    
 
     // private void printClasses(PrintWriter printWriter, List<String> list) {
     //     for (int i = 0; i < list.size(); i++) {

@@ -16,3 +16,7 @@ Pour les méthodes de votre controller utilisant ayant des parametres(Cas de for
 Soit:
     - Utiliser le meme nom que le input
     - Annoter le parametre avec @Param(paramName = "exampleName") où exampleName est le name du input
+
+Possibilité de recevoir un ou des objets en paramètre:
+    - Utiliser nomObjet.nomAttribut en name du input
+    - Annoter le parametre objet avec @Param(paramName = "exampleName") où exampleName.nomAttribut est le name du input

@@ -17,7 +17,7 @@ FOR /R "%src_dir%" %%F IN (*.java) DO (
 )
 
 cd "%temp_src%"
-javac -sourcepath "%temp_src%" -d "%bin_dir%" -cp "%lib_dir%" *.java
+javac -parameters -sourcepath "%temp_src%" -d "%bin_dir%" -cp "%lib_dir%" *.java
 
 jar -cvf "%work_dir%/myServlet.jar" -C "%bin_dir%" . 
 

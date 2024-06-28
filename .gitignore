@@ -4,3 +4,4 @@ lib/
 myservlet.jar
 *.class
 /bin
+script.bat

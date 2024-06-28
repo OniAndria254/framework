@@ -109,15 +109,18 @@ public class FrontControllerServlet extends HttpServlet {
                     parameterNames.add(parameter.getName());
 
                     if (Utility.isPrimitive(parameter.getType())) {
-                        paramValue = request.getParameter(parameter.getName());
+                        // paramValue = request.getParameter(parameter.getName());
                         // System.out.print("String: " + parameter.getName());
-                        args[i] = paramValue;
+                        // args[i] = paramValue;
                         // Vérifier si l'annotation Param est présente
                         if (parameter.isAnnotationPresent(Param.class)) {
                             Param annotation = parameter.getAnnotation(Param.class);
                             // Utiliser le nom spécifié dans l'annotation pour récupérer la valeur de la requête
                             paramValue = request.getParameter(annotation.paramName());
                             args[i] = paramValue;
+                        }
+                        else {
+                            throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
                         }
                     }
                     else {
@@ -137,19 +140,7 @@ public class FrontControllerServlet extends HttpServlet {
                             args[i] = obj;
                         }
                         else {
-                            // Vérifier si le paramètre est un objet
-                            Class<?> parameterType = parameter.getType();
-                                                                    
-                            Object obj = parameterType.getDeclaredConstructor().newInstance();
-                            Field[] fields = obj.getClass().getDeclaredFields();
-                            Method[] methods = obj.getClass().getDeclaredMethods();
-
-                            for (Field field : fields) {
-                                // System.out.println(parameter.getName() + "." + field.getName());
-                                Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
-                                setObjectField(obj, methods, field, value);
-                            }
-                            args[i] = obj;
+                            throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
                         }
                         
                     }
@@ -194,6 +185,7 @@ public class FrontControllerServlet extends HttpServlet {
                 continue;
             }   
             return method.invoke(obj, value);
+            
         }
         throw new Exception("Aucun setter trouvé pour l'attribut: " + field.getName());
     }

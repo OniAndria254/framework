@@ -84,8 +84,17 @@ public class FrontControllerServlet extends HttpServlet {
             // Récupération de l'instance de la classe du contrôleur
             try {
                 Class<?> controllerClass = Class.forName(mapping.getClasse());
+                // Object control = Class.forName(mapping.getClasse()).getDeclaredConstructor().newInstance();
+                
                 Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
+                Field[] fieldss = controllerInstance.getClass().getDeclaredFields();
+                for (Field field : fieldss) {
+                    if (field.getType().equals(AttributeSession.class)) {
+                        field.setAccessible(true);
+                        field.set(controllerInstance, new AttributeSession(request));
+                    }
+                }
                 // Récupération de toutes les méthodes déclarées dans la classe
                 Method[] declaredMethods = controllerClass.getDeclaredMethods();
 
@@ -120,6 +129,7 @@ public class FrontControllerServlet extends HttpServlet {
                             args[i] = paramValue;
                         }
                         else {
+                            // System.out.println("atoo");
                             throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
                         }
                     }
@@ -140,13 +150,25 @@ public class FrontControllerServlet extends HttpServlet {
                             args[i] = obj;
                         }
                         else {
-                            throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
+                            Class<?> parameterType = parameter.getType();
+                            if (parameterType == CustomSession.class) {
+                                CustomSession customSession = Utility.HttpSessionToCustomSession(request.getSession(false));
+                                args[i] = customSession;
+                            }
+                            // throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
                         }
                         
                     }
                 }
                 // Invocation de la méthode
                 Object result = vraiMethod.invoke(controllerInstance, args);
+
+                for (Object arg : args) {
+                    if (arg instanceof CustomSession) {
+                        Utility.CustomSessionToHttpSession((CustomSession)arg, request);
+                    }
+                }
+
 
                 // Traitement spécifique selon le type de données retourné par la méthode @Get
                 if (result instanceof String) {

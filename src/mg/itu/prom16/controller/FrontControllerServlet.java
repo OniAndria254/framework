@@ -160,6 +160,41 @@ public class FrontControllerServlet extends HttpServlet {
                         
                     }
                 }
+
+                // Ajouter la vérification de l'annotation Restapi ici
+            if (vraiMethod.isAnnotationPresent(Restapi.class)) {
+                // Récupérer la valeur de retour de la méthode
+                Object result = vraiMethod.invoke(controllerInstance, args);
+                
+                if (result instanceof ModelView) {
+                    ModelView modelView = (ModelView) result;
+                    
+                    // Transformer les données en JSON
+                    String jsonData = Utility.modelViewToJson(modelView);
+                    
+                    // Configurer le type de réponse comme text/json
+                    response.setContentType("text/json");
+                    
+                    // Écrire la réponse
+                    PrintWriter pw = response.getWriter();
+                    pw.print(jsonData);
+                } else {
+                    // Transformer directement en JSON si ce n'est pas un ModelView
+                    String jsonData = Utility.objectToJson(result);
+                    
+                    // Configurer le type de réponse comme text/json
+                    response.setContentType("text/json");
+                    
+                    // Écrire la réponse
+                    PrintWriter pw = response.getWriter();
+                    pw.print(jsonData);
+                }
+                
+                // Arrêter l'exécution après avoir envoyé la réponse JSON
+                return;
+            }
+        
+
                 // Invocation de la méthode
                 Object result = vraiMethod.invoke(controllerInstance, args);
 

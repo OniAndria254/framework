@@ -20,3 +20,5 @@ Soit:
 Possibilité de recevoir un ou des objets en paramètre:
     - Utiliser nomObjet.nomAttribut en name du input
     - Annoter le parametre objet avec @Param(paramName = "exampleName") où exampleName.nomAttribut est le name du input
+
+L'utilisation de l'annotation @Restapi à une méthode de controller permettra de retourner un json au lieu de vue. 

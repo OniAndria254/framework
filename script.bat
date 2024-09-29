@@ -7,7 +7,7 @@ set src_dir=C:/e-bossy/S4/Web Dyn/framework/framework/src
 set temp_src=C:/e-bossy/S4/Web Dyn/framework/framework/temp-src
 
 set bin_dir=C:/e-bossy/S4/Web Dyn/framework/framework/bin
-set lib_dir=C:/e-bossy/S4/Web Dyn/framework/framework/lib/servlet-api.jar
+set lib_dir=C:/e-bossy/S4/Web Dyn/framework/framework/lib
 set work_dir=C:/e-bossy/S4/Web Dyn/framework/framework
 
 mkdir "%temp_src%"

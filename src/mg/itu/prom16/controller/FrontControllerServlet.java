@@ -52,13 +52,21 @@ public class FrontControllerServlet extends HttpServlet {
             if (this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
                 Method[] methods = classes.get(j).getMethods();
                 for (Method method : methods) {
-                    if (method.isAnnotationPresent(Get.class)) {
-                        String url = method.getAnnotation(Get.class).value();
+                    if (method.isAnnotationPresent(Url.class)) {
+                        String url = method.getAnnotation(Url.class).chemin();
+                        String verb = "";
+                        if (method.isAnnotationPresent(Post.class)) {
+                            verb = "Post";
+                        }
+                        else {
+                            verb = "Get";
+                        }
                         String className = classes.get(j).getName();
                         String methodName = method.getName();
 
+
                         // Création d'une instance de Mapping et ajout au HashMap
-                        Mapping mapping = new Mapping(className, methodName);
+                        Mapping mapping = new Mapping(className, methodName, verb);
                         if(hashMap.containsKey(url)) {
                             throw new ServletException("Duplication d'url");
                         }
@@ -289,7 +297,7 @@ public class FrontControllerServlet extends HttpServlet {
             }
             else if(file.getName().endsWith(".class"))
             {
-                System.out.println("Errordavjhbojb");
+                System.out.println("");
                 try {
                     String className = packageName + '.' + file.getName().substring(0, file.getName().length()-6);
                     classes.add(Class.forName(className));

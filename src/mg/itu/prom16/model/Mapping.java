@@ -4,7 +4,16 @@ package mg.itu.prom16.model;
 public class Mapping {
     String classe;
     String methode;
+    String verb;
     
+    public String getVerb() {
+        return verb;
+    }
+
+    public void setVerb(String verb) {
+        this.verb = verb;
+    }
+
     public Mapping() {
     }
     
@@ -20,9 +29,10 @@ public class Mapping {
     public void setMethode(String methode) {
         this.methode = methode;
     }
-    public Mapping(String classe, String methode) {
+    public Mapping(String classe, String methode, String verb) {
         this.classe = classe;
         this.methode = methode;
+        this.verb = verb;
     }
     
 }

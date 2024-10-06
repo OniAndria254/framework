@@ -52,13 +52,21 @@ public class FrontControllerServlet extends HttpServlet {
             if (this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
                 Method[] methods = classes.get(j).getMethods();
                 for (Method method : methods) {
-                    if (method.isAnnotationPresent(Get.class)) {
-                        String url = method.getAnnotation(Get.class).value();
+                    if (method.isAnnotationPresent(Url.class)) {
+                        String url = method.getAnnotation(Url.class).chemin();
+                        String verb = "";
+                        if (method.isAnnotationPresent(Post.class)) {
+                            verb = "Post";
+                        }
+                        else {
+                            verb = "Get";
+                        }
                         String className = classes.get(j).getName();
                         String methodName = method.getName();
 
+
                         // Création d'une instance de Mapping et ajout au HashMap
-                        Mapping mapping = new Mapping(className, methodName);
+                        Mapping mapping = new Mapping(className, methodName, verb);
                         if(hashMap.containsKey(url)) {
                             throw new ServletException("Duplication d'url");
                         }
@@ -101,6 +109,9 @@ public class FrontControllerServlet extends HttpServlet {
                 Method vraiMethod = null;
                 // Vérification si une méthode avec le nom spécifié existe
                 for (Method method : declaredMethods) {
+                    if (!mapping.getVerb().equalsIgnoreCase(request.getMethod())) {
+                        throw new ServletException("Url et Verb non compatibles");
+                    }
                     if (method.getName().equals(mapping.getMethode())) {
                         vraiMethod = method;
                         break;
@@ -162,38 +173,37 @@ public class FrontControllerServlet extends HttpServlet {
                 }
 
                 // Ajouter la vérification de l'annotation Restapi ici
-            if (vraiMethod.isAnnotationPresent(Restapi.class)) {
-                // Récupérer la valeur de retour de la méthode
-                Object result = vraiMethod.invoke(controllerInstance, args);
-                
-                if (result instanceof ModelView) {
-                    ModelView modelView = (ModelView) result;
+                if (vraiMethod.isAnnotationPresent(Restapi.class)) {
+                    // Récupérer la valeur de retour de la méthode
+                    Object result = vraiMethod.invoke(controllerInstance, args);
                     
-                    // Transformer les données en JSON
-                    String jsonData = Utility.modelViewToJson(modelView);
+                    if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        
+                        // Transformer les données en JSON
+                        String jsonData = Utility.modelViewToJson(modelView);
+                        
+                        // Configurer le type de réponse comme text/json
+                        response.setContentType("text/json");
+                        
+                        // Écrire la réponse
+                        PrintWriter pw = response.getWriter();
+                        pw.print(jsonData);
+                    } else {
+                        // Transformer directement en JSON si ce n'est pas un ModelView
+                        String jsonData = Utility.objectToJson(result);
+                        
+                        // Configurer le type de réponse comme text/json
+                        response.setContentType("text/json");
+                        
+                        // Écrire la réponse
+                        PrintWriter pw = response.getWriter();
+                        pw.print(jsonData);
+                    }
                     
-                    // Configurer le type de réponse comme text/json
-                    response.setContentType("text/json");
-                    
-                    // Écrire la réponse
-                    PrintWriter pw = response.getWriter();
-                    pw.print(jsonData);
-                } else {
-                    // Transformer directement en JSON si ce n'est pas un ModelView
-                    String jsonData = Utility.objectToJson(result);
-                    
-                    // Configurer le type de réponse comme text/json
-                    response.setContentType("text/json");
-                    
-                    // Écrire la réponse
-                    PrintWriter pw = response.getWriter();
-                    pw.print(jsonData);
+                    // Arrêter l'exécution après avoir envoyé la réponse JSON
+                    return;
                 }
-                
-                // Arrêter l'exécution après avoir envoyé la réponse JSON
-                return;
-            }
-        
 
                 // Invocation de la méthode
                 Object result = vraiMethod.invoke(controllerInstance, args);
@@ -289,7 +299,7 @@ public class FrontControllerServlet extends HttpServlet {
             }
             else if(file.getName().endsWith(".class"))
             {
-                System.out.println("Errordavjhbojb");
+                System.out.println("");
                 try {
                     String className = packageName + '.' + file.getName().substring(0, file.getName().length()-6);
                     classes.add(Class.forName(className));

@@ -1,21 +1,18 @@
 package mg.itu.prom16.model;
+import java.util.*;
 
 
 public class Mapping {
     String classe;
-    String methode;
-    String verb;
+    ArrayList<VerbMethod> verbMethods = new ArrayList<>();
     
-    public String getVerb() {
-        return verb;
+    
+    public Mapping(String classe, ArrayList<VerbMethod> verbMethods) {
+        this.classe = classe;
+        this.verbMethods = verbMethods;
     }
-
-    public void setVerb(String verb) {
-        this.verb = verb;
-    }
-
     public Mapping() {
-    }
+    }  
     
     public String getClasse() {
         return classe;
@@ -23,16 +20,40 @@ public class Mapping {
     public void setClasse(String classe) {
         this.classe = classe;
     }
-    public String getMethode() {
-        return methode; 
+    public ArrayList<VerbMethod> getVerbMethods() {
+        return verbMethods;
     }
-    public void setMethode(String methode) {
-        this.methode = methode;
+    public void setVerbMethods(ArrayList<VerbMethod> verbMethods) {
+        this.verbMethods = verbMethods;
     }
-    public Mapping(String classe, String methode, String verb) {
-        this.classe = classe;
-        this.methode = methode;
-        this.verb = verb;
+
+    public void addVerbMethod (VerbMethod vm){
+        getVerbMethods().add(vm);
+    }
+
+    public boolean hasVerbMethod (VerbMethod vm){
+        for (VerbMethod verbMethod : getVerbMethods()) {
+            if (vm.getMethod().compareTo(verbMethod.getMethod()) == 0 && vm.getVerb().compareTo(verbMethod.getVerb())==0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public Mapping (String classname , VerbMethod vm){
+        setClasse(classname);
+        getVerbMethods().add(vm);
+    }
+
+    public VerbMethod getSingleVerbMethod (String verb){
+        for (VerbMethod verbMethod : verbMethods) {
+            if (verbMethod.getVerb().compareToIgnoreCase(verb) == 0) {
+                return verbMethod;
+            }
+        }
+
+        return null;
     }
     
 }

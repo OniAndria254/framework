@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import mg.itu.prom16.annotation.*;
 import mg.itu.prom16.model.*;
@@ -64,13 +65,21 @@ public class FrontControllerServlet extends HttpServlet {
                         String className = classes.get(j).getName();
                         String methodName = method.getName();
 
-
-                        // Création d'une instance de Mapping et ajout au HashMap
-                        Mapping mapping = new Mapping(className, methodName, verb);
-                        if(hashMap.containsKey(url)) {
-                            throw new ServletException("Duplication d'url");
+                        if (url.isEmpty() == false) {
+                            VerbMethod vm = new VerbMethod(verb , methodName);
+                            Mapping mapping=new Mapping(className,vm);
+                            if (hashMap.containsKey(url)) {
+                                Mapping temp =hashMap.get(url);
+                                if (temp.hasVerbMethod(vm) == false) {
+                                    temp.addVerbMethod(vm);
+                                }else{
+                                    throw new Exception("L'URL \""+ url +"\" est deja utilise par le verb '"+verb+"'");
+                                }
+                            }else{
+                                hashMap.put(url, mapping);
+                            }
                         }
-                        hashMap.put(url, mapping);
+                    
                     }
                 }
             }
@@ -91,6 +100,10 @@ public class FrontControllerServlet extends HttpServlet {
 
             // Récupération de l'instance de la classe du contrôleur
             try {
+                VerbMethod single =  mapping.getSingleVerbMethod(request.getMethod());
+
+                Method method=Utility.findMethod(mapping.getClasse(), single);
+
                 Class<?> controllerClass = Class.forName(mapping.getClasse());
                 // Object control = Class.forName(mapping.getClasse()).getDeclaredConstructor().newInstance();
                 
@@ -106,17 +119,8 @@ public class FrontControllerServlet extends HttpServlet {
                 // Récupération de toutes les méthodes déclarées dans la classe
                 Method[] declaredMethods = controllerClass.getDeclaredMethods();
 
-                Method vraiMethod = null;
-                // Vérification si une méthode avec le nom spécifié existe
-                for (Method method : declaredMethods) {
-                    if (!mapping.getVerb().equalsIgnoreCase(request.getMethod())) {
-                        throw new ServletException("Url et Verb non compatibles");
-                    }
-                    if (method.getName().equals(mapping.getMethode())) {
-                        vraiMethod = method;
-                        break;
-                    }
-                }
+                Method vraiMethod = method;
+                
 
                 Parameter[] parameters = vraiMethod.getParameters();
                 Object[] args = new Object[parameters.length];
@@ -217,7 +221,7 @@ public class FrontControllerServlet extends HttpServlet {
 
                 // Traitement spécifique selon le type de données retourné par la méthode @Get
                 if (result instanceof String) {
-                    printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+                    printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + vraiMethod.getName());
                     printWriter.println(result);
                 } else if (result instanceof ModelView) {
                     ModelView modelView = (ModelView) result;

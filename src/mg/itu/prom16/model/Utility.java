@@ -1,5 +1,6 @@
 package mg.itu.prom16.model;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +97,22 @@ public class Utility {
             httpSession.setAttribute(entry.getKey(), entry.getValue());
         }
         // return httpSession;
+    }
+
+    public static Method findMethod(String className, VerbMethod vm) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            Method[] methods = clazz.getMethods();
+            for (Method method : methods) {
+                if (method.getName().equals(vm.getMethod())) {
+                    return method;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
 }

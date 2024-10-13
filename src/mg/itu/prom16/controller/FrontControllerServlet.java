@@ -244,7 +244,12 @@ public class FrontControllerServlet extends HttpServlet {
                 throw new ServletException(e.getCause() + " ;" + e.getMessage());
             }
         } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+    
+            // Write a custom message to the response body
+            response.setContentType("text/plain");
+            response.getWriter().println("Erreur 404 : Lien inexistant");
+            response.getWriter().flush();
         }
     }
 

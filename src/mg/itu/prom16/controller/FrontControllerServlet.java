@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +23,13 @@ import java.util.function.Function;
 
 import mg.itu.prom16.annotation.*;
 import mg.itu.prom16.model.*;
+import jakarta.servlet.annotation.MultipartConfig;
+
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2, // 2 MB
+    maxFileSize = 1024 * 1024 * 10,      // 10 MB
+    maxRequestSize = 1024 * 1024 * 50    // 50 MB
+)
 
 public class FrontControllerServlet extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
@@ -41,216 +49,222 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     private void initialisation() throws Exception {
-        // Récupération des classes et méthodes annotées
         String packageName = getServletContext().getInitParameter("controllerPackage");
         List<Class<?>> classes = FrontControllerServlet.getClasses(packageName);
-
-        if (classes.size()==0) {
+    
+        if (classes.isEmpty()) {
             throw new ServletException("Package vide ou inexistant");
         }
-
-        for (int j = 0; j < classes.size(); j++) {
-            if (this.hasAnnotation(classes.get(j), MyControllerAnnotation.class)) {
-                Method[] methods = classes.get(j).getMethods();
-                for (Method method : methods) {
-                    if (method.isAnnotationPresent(Url.class)) {
-                        String url = method.getAnnotation(Url.class).chemin();
-                        String verb = "";
-                        if (method.isAnnotationPresent(Post.class)) {
-                            verb = "Post";
-                        }
-                        else {
-                            verb = "Get";
-                        }
-                        String className = classes.get(j).getName();
-                        String methodName = method.getName();
-
-                        if (url.isEmpty() == false) {
-                            VerbMethod vm = new VerbMethod(verb , methodName);
-                            Mapping mapping=new Mapping(className,vm);
-                            if (hashMap.containsKey(url)) {
-                                Mapping temp =hashMap.get(url);
-                                if (temp.hasVerbMethod(vm) == false) {
-                                    temp.addVerbMethod(vm);
-                                }else{
-                                    throw new Exception("L'URL \""+ url +"\" est deja utilise par le verb '"+verb+"'");
-                                }
-                            }else{
-                                hashMap.put(url, mapping);
-                            }
-                        }
-                    
-                    }
-                }
+    
+        for (Class<?> controllerClass : classes) {
+            if (hasAnnotation(controllerClass, MyControllerAnnotation.class)) {
+                processControllerClass(controllerClass);
             }
         }
     }
     
+    private void processControllerClass(Class<?> controllerClass) throws Exception {
+        Method[] methods = controllerClass.getMethods();
+    
+        for (Method method : methods) {
+            if (method.isAnnotationPresent(Url.class)) {
+                processControllerMethod(controllerClass, method);
+            }
+        }
+    }
+    
+    private void processControllerMethod(Class<?> controllerClass, Method method) throws Exception {
+        String url = method.getAnnotation(Url.class).chemin();
+        
+        if (!url.isEmpty()) {
+            String verb = getHttpVerbFromMethod(method);
+            String className = controllerClass.getName();
+            String methodName = method.getName();
+    
+            VerbMethod vm = new VerbMethod(verb, methodName);
+            Mapping mapping = new Mapping(className, vm);
+    
+            registerMapping(url, vm, mapping);
+        }
+    }
+    
+    private String getHttpVerbFromMethod(Method method) {
+        if (method.isAnnotationPresent(Post.class)) {
+            return "Post";
+        } else {
+            return "Get";
+        }
+    }
+    
+    private void registerMapping(String url, VerbMethod vm, Mapping mapping) throws Exception {
+        if (hashMap.containsKey(url)) {
+            Mapping existingMapping = hashMap.get(url);
+    
+            if (!existingMapping.hasVerbMethod(vm)) {
+                existingMapping.addVerbMethod(vm);
+            } else {
+                throw new Exception("L'URL \"" + url + "\" est déjà utilisée par le verbe '" + vm.getVerb() + "'");
+            }
+        } else {
+            hashMap.put(url, mapping);
+        }
+    }
+    
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
         PrintWriter printWriter = response.getWriter();
-        String requestURI = request.getRequestURI();
-        String contextPath= request.getContextPath();
-        String url = requestURI.substring(contextPath.length());
-        // String lastPart = getURLSplit(url); // Assurez-vous que cette méthode est définie ailleurs
+        String url = getUrlFromRequest(request);
+        boolean isMultipart = isMultipartRequest(request);
 
-        // Vérification si l'URL existe dans le HashMap
         if (hashMap.containsKey(url)) {
             Mapping mapping = hashMap.get(url);
-
-            // Récupération de l'instance de la classe du contrôleur
             try {
-                VerbMethod single =  mapping.getSingleVerbMethod(request.getMethod());
-
-                Method method=Utility.findMethod(mapping.getClasse(), single);
-
-                Class<?> controllerClass = Class.forName(mapping.getClasse());
-                // Object control = Class.forName(mapping.getClasse()).getDeclaredConstructor().newInstance();
-                
-                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
-
-                Field[] fieldss = controllerInstance.getClass().getDeclaredFields();
-                for (Field field : fieldss) {
-                    if (field.getType().equals(AttributeSession.class)) {
-                        field.setAccessible(true);
-                        field.set(controllerInstance, new AttributeSession(request));
-                    }
-                }
-                // Récupération de toutes les méthodes déclarées dans la classe
-                Method[] declaredMethods = controllerClass.getDeclaredMethods();
-
-                Method vraiMethod = method;
-                
-
-                Parameter[] parameters = vraiMethod.getParameters();
-                Object[] args = new Object[parameters.length];
-
-                ArrayList<String> parameterNames = new ArrayList<>();
-                String paramValue = null;
-
-                for (int i = 0; i < parameters.length; i++) {
-                    Parameter parameter = parameters[i];
-                    parameterNames.add(parameter.getName());
-
-                    if (Utility.isPrimitive(parameter.getType())) {
-                        // paramValue = request.getParameter(parameter.getName());
-                        // System.out.print("String: " + parameter.getName());
-                        // args[i] = paramValue;
-                        // Vérifier si l'annotation Param est présente
-                        if (parameter.isAnnotationPresent(Param.class)) {
-                            Param annotation = parameter.getAnnotation(Param.class);
-                            // Utiliser le nom spécifié dans l'annotation pour récupérer la valeur de la requête
-                            paramValue = request.getParameter(annotation.paramName());
-                            args[i] = paramValue;
-                        }
-                        else {
-                            // System.out.println("atoo");
-                            throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
-                        }
-                    }
-                    else {
-                        if (parameter.isAnnotationPresent(Param.class)) {
-                            // Vérifier si le paramètre est un objet
-                            Class<?> parameterType = parameter.getType();
-                                                                    
-                            Object obj = parameterType.getDeclaredConstructor().newInstance();
-                            Field[] fields = obj.getClass().getDeclaredFields();
-                            Method[] methods = obj.getClass().getDeclaredMethods();
-
-                            for (Field field : fields) {
-                                // System.out.println(parameter.getAnnotation(Param.class).paramName() + "." + field.getName());
-                                Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
-                                setObjectField(obj, methods, field, value);
-                            }
-                            args[i] = obj;
-                        }
-                        else {
-                            Class<?> parameterType = parameter.getType();
-                            if (parameterType == CustomSession.class) {
-                                CustomSession customSession = Utility.HttpSessionToCustomSession(request.getSession(false));
-                                args[i] = customSession;
-                            }
-                            // throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
-                        }
-                        
-                    }
-                }
-
-                // Ajouter la vérification de l'annotation Restapi ici
-                if (vraiMethod.isAnnotationPresent(Restapi.class)) {
-                    // Récupérer la valeur de retour de la méthode
-                    Object result = vraiMethod.invoke(controllerInstance, args);
-                    
-                    if (result instanceof ModelView) {
-                        ModelView modelView = (ModelView) result;
-                        
-                        // Transformer les données en JSON
-                        String jsonData = Utility.modelViewToJson(modelView);
-                        
-                        // Configurer le type de réponse comme text/json
-                        response.setContentType("text/json");
-                        
-                        // Écrire la réponse
-                        PrintWriter pw = response.getWriter();
-                        pw.print(jsonData);
-                    } else {
-                        // Transformer directement en JSON si ce n'est pas un ModelView
-                        String jsonData = Utility.objectToJson(result);
-                        
-                        // Configurer le type de réponse comme text/json
-                        response.setContentType("text/json");
-                        
-                        // Écrire la réponse
-                        PrintWriter pw = response.getWriter();
-                        pw.print(jsonData);
-                    }
-                    
-                    // Arrêter l'exécution après avoir envoyé la réponse JSON
-                    return;
-                }
-
-                // Invocation de la méthode
-                Object result = vraiMethod.invoke(controllerInstance, args);
-
-                for (Object arg : args) {
-                    if (arg instanceof CustomSession) {
-                        Utility.CustomSessionToHttpSession((CustomSession)arg, request);
-                    }
-                }
-
-
-                // Traitement spécifique selon le type de données retourné par la méthode @Get
-                if (result instanceof String) {
-                    printWriter.println("Controller: " + mapping.getClasse() + ", Methode: " + vraiMethod.getName());
-                    printWriter.println(result);
-                } else if (result instanceof ModelView) {
-                    ModelView modelView = (ModelView) result;
-                    // Extrait de l'URL du ModelView
-                    String targetUrl = modelView.getUrl();
-                    // Redirection vers l'URL cible avec les données comme attributs de requête
-                    RequestDispatcher dispatcher = request.getRequestDispatcher(targetUrl);
-                    for (String key : modelView.getData().keySet()) {
-                        // Convertir la clé en chaîne de caractères pour l'utilisation avec request.setAttribute
-                        Object attributeValue =modelView.getData().get(key); // La valeur reste l'objet
-
-                        // Utiliser setAttribute pour chaque entrée du HashMap
-                        request.setAttribute(key, attributeValue);
-                    }
-                    dispatcher.forward(request, response);
-                } else {
-                    throw new ServletException("Type de retour non-géré");
-                }
+                handleRequestMapping(mapping, request, response, isMultipart);
             } catch (Exception e) {
                 throw new ServletException(e.getCause() + " ;" + e.getMessage());
             }
         } else {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-    
-            // Write a custom message to the response body
-            response.setContentType("text/plain");
-            response.getWriter().println("Erreur 404 : Lien inexistant");
-            response.getWriter().flush();
+            handleNotFound(response);
         }
+    }
+
+    private String getUrlFromRequest(HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        return requestURI.substring(contextPath.length());
+    }
+
+    private boolean isMultipartRequest(HttpServletRequest request) {
+        return request.getContentType() != null && request.getContentType().startsWith("multipart/");
+    }
+
+    private void handleRequestMapping(Mapping mapping, HttpServletRequest request, HttpServletResponse response, boolean isMultipart) 
+        throws Exception {
+        VerbMethod single = mapping.getSingleVerbMethod(request.getMethod());
+        Method method = Utility.findMethod(mapping.getClasse(), single);
+        Object controllerInstance = createControllerInstance(mapping.getClasse(), request);
+        
+        Object[] args = resolveMethodArguments(method, request, isMultipart);
+        
+        if (method.isAnnotationPresent(Restapi.class)) {
+            handleRestApiMethod(method, controllerInstance, args, response);
+        } else {
+            handleRegularMethod(method, controllerInstance, args, request, response);
+        }
+    }
+
+    private Object createControllerInstance(String className, HttpServletRequest request) 
+        throws Exception {
+        Class<?> controllerClass = Class.forName(className);
+        Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+
+        for (Field field : controllerClass.getDeclaredFields()) {
+            if (field.getType().equals(AttributeSession.class)) {
+                field.setAccessible(true);
+                field.set(controllerInstance, new AttributeSession(request));
+            }
+        }
+
+        return controllerInstance;
+    }
+
+    private Object[] resolveMethodArguments(Method method, HttpServletRequest request, boolean isMultipart) 
+        throws Exception {
+        Parameter[] parameters = method.getParameters();
+        Object[] args = new Object[parameters.length];
+
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter parameter = parameters[i];
+
+            if (Utility.isPrimitive(parameter.getType())) {
+                args[i] = resolvePrimitiveParameter(parameter, request);
+            } else {
+                args[i] = resolveComplexParameter(parameter, request, isMultipart);
+            }
+        }
+
+        return args;
+    }
+
+    private Object resolvePrimitiveParameter(Parameter parameter, HttpServletRequest request) 
+            throws ServletException {
+        if (parameter.isAnnotationPresent(Param.class)) {
+            Param annotation = parameter.getAnnotation(Param.class);
+            return request.getParameter(annotation.paramName());
+        } else {
+            throw new ServletException("ETU002382: Méthode avec des parametres non-annotés");
+        }
+    }
+
+    private Object resolveComplexParameter(Parameter parameter, HttpServletRequest request, boolean isMultipart) 
+            throws Exception {
+        if (parameter.isAnnotationPresent(Param.class)) {
+            Param annotation = parameter.getAnnotation(Param.class);
+
+            if (parameter.getType().equals(Part.class) && isMultipart) {
+                return request.getPart(annotation.paramName());
+            } else {
+                return populateComplexObject(parameter, request);
+            }
+        } else if (parameter.getType().equals(CustomSession.class)) {
+            return Utility.HttpSessionToCustomSession(request.getSession(false));
+        }
+        
+        return null;
+    }
+
+    private Object populateComplexObject(Parameter parameter, HttpServletRequest request) 
+            throws Exception {
+        Class<?> parameterType = parameter.getType();
+        Object obj = parameterType.getDeclaredConstructor().newInstance();
+
+        for (Field field : obj.getClass().getDeclaredFields()) {
+            Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
+            setObjectField(obj, obj.getClass().getDeclaredMethods(), field, value);
+        }
+
+        return obj;
+    }
+
+    private void handleRestApiMethod(Method method, Object controllerInstance, Object[] args, HttpServletResponse response) 
+        throws Exception {
+        Object result = method.invoke(controllerInstance, args);
+        String jsonData = result instanceof ModelView
+                ? Utility.modelViewToJson((ModelView) result)
+                : Utility.objectToJson(result);
+        
+        response.setContentType("text/json");
+        response.getWriter().print(jsonData);
+    }
+
+    private void handleRegularMethod(Method method, Object controllerInstance, Object[] args, HttpServletRequest request, HttpServletResponse response) 
+        throws Exception {
+        Object result = method.invoke(controllerInstance, args);
+
+        if (result instanceof String) {
+            response.getWriter().println(result);
+        } else if (result instanceof ModelView) {
+            handleModelView((ModelView) result, request, response);
+        } else {
+            throw new ServletException("Type de retour non-géré");
+        }
+    }
+
+    private void handleModelView(ModelView modelView, HttpServletRequest request, HttpServletResponse response) 
+            throws Exception {
+        RequestDispatcher dispatcher = request.getRequestDispatcher(modelView.getUrl());
+        for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
+            request.setAttribute(entry.getKey(), entry.getValue());
+        }
+        dispatcher.forward(request, response);
+    }
+
+    private void handleNotFound(HttpServletResponse response) 
+        throws IOException {
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        response.setContentType("text/plain");
+        response.getWriter().println("Erreur 404 : Lien inexistant");
     }
 
     public static Object setObjectField(Object obj, Method[] methods, Field field, Object value) throws Exception {

@@ -9,6 +9,7 @@ import jakarta.servlet.http.Part;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
@@ -202,9 +203,19 @@ public class FrontControllerServlet extends HttpServlet {
         if (parameter.isAnnotationPresent(Param.class)) {
             Param annotation = parameter.getAnnotation(Param.class);
 
-            if (parameter.getType().equals(Part.class) && isMultipart) {
-                return request.getPart(annotation.paramName());
-            } else {
+            if (parameter.getType().equals(MyFile.class) && isMultipart) {
+                // Gérer les fichiers en tant que MyFile
+                Part filePart = request.getPart(annotation.paramName());
+                if (filePart != null) {
+                    InputStream fileContent = filePart.getInputStream();
+                    String fileName = extractFileName(filePart);
+    
+                    // Créer une instance de MyFile et passer comme argument
+                    MyFile myFile = new MyFile(fileContent, fileName);
+                    return myFile;
+                }
+            }
+            else {
                 return populateComplexObject(parameter, request);
             }
         } else if (parameter.getType().equals(CustomSession.class)) {
@@ -266,6 +277,15 @@ public class FrontControllerServlet extends HttpServlet {
         response.setContentType("text/plain");
         response.getWriter().println("Erreur 404 : Lien inexistant");
     }
+
+    private String extractFileName(Part part) {
+        for (String content : part.getHeader("content-disposition").split(";")) {
+            if (content.trim().startsWith("filename")) {
+                return content.substring(content.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+        return "unknown";
+    }    
 
     public static Object setObjectField(Object obj, Method[] methods, Field field, Object value) throws Exception {
         String setterMethod = "set" + Utility.capitalize(field.getName());

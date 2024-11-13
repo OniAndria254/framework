@@ -1,5 +1,6 @@
 package mg.itu.prom16.model;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -10,6 +11,8 @@ import com.google.gson.reflect.TypeToken;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import mg.itu.prom16.annotation.Range;
+
 import java.util.Enumeration;
 import java.util.HashMap;
 
@@ -115,4 +118,50 @@ public class Utility {
         return null;
     }
 
+    public static void validate(Object obj) throws IllegalArgumentException, IllegalAccessException {
+        Class<?> clazz = obj.getClass();
+
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true);
+            Object value = field.get(obj);
+
+            // Validation @Numeric
+            // if (field.isAnnotationPresent(Numeric.class)) {
+            //     if (value != null && !(value instanceof Number)) {
+            //         throw new IllegalArgumentException("Le champ " + field.getName() + " doit être numérique.");
+            //     }
+            // }
+
+            // Validation @Date
+            // if (field.isAnnotationPresent(Date.class)) {
+            //     Date dateAnnotation = field.getAnnotation(Date.class);
+            //     String format = dateAnnotation.format();
+            //     if (value != null && value instanceof String) {
+            //         SimpleDateFormat sdf = new SimpleDateFormat(format);
+            //         sdf.setLenient(false);
+            //         try {
+            //             sdf.parse((String) value);
+            //         } catch (ParseException e) {
+            //             throw new IllegalArgumentException("Le champ " + field.getName() + " doit être une date au format " + format);
+            //         }
+            //     }
+            // }
+
+            // Validation @Range
+            if (field.isAnnotationPresent(Range.class)) {
+                Range rangeAnnotation = field.getAnnotation(Range.class);
+                int min = rangeAnnotation.min();
+                int max = rangeAnnotation.max();
+
+                if (value != null && value instanceof Integer) {
+                    int intValue = (Integer) value;
+                    if (intValue < min || intValue > max) {
+                        throw new IllegalArgumentException("Le champ " + field.getName() + " doit être compris entre " + min + " et " + max + ".");
+                    }
+                } else if (value != null) {
+                    throw new IllegalArgumentException("Le champ " + field.getName() + " doit être un entier pour utiliser @Range.");
+                }
+            }
+        }
+    }
 }

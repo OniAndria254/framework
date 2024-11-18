@@ -234,6 +234,7 @@ public class FrontControllerServlet extends HttpServlet {
             Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
             setObjectField(obj, obj.getClass().getDeclaredMethods(), field, value);
         }
+        Utility.validate(obj);
 
         return obj;
     }

@@ -15,6 +15,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import mg.itu.prom16.annotation.*;
+import mg.itu.prom16.exception.ValidationException;
 import mg.itu.prom16.model.*;
 import jakarta.servlet.annotation.MultipartConfig;
 
@@ -122,13 +124,58 @@ public class FrontControllerServlet extends HttpServlet {
             Mapping mapping = hashMap.get(url);
             try {
                 handleRequestMapping(mapping, request, response, isMultipart);
-            } catch (Exception e) {
+            }
+            catch (ValidationException ve) {
+                // En cas d'erreur de validation
+                handleValidationException(ve, request, response); 
+            }
+            catch (Exception e) {
                 throw new ServletException(e.getCause() + " ;" + e.getMessage());
             }
         } else {
             handleNotFound(response);
         }
     }
+    
+    private void handleValidationException(ValidationException ve, HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        // Ajouter les valeurs précédentes et les erreurs à la requête
+        request.setAttribute("previousValues", ve.getFormData());  // Assurez-vous que `getFormData()` retourne les données précédentes
+        request.setAttribute("validationErrors", ve.getValidationError().getErrors());  // Les erreurs de validation
+
+        // Récupérer l'URL précédente
+        String previousUrl = request.getHeader("Referer");
+        URL url = new URL(previousUrl);
+        previousUrl = url.getPath();
+        String izy = previousUrl.split("/")[2];
+        izy = "/"+izy;
+        System.out.println(izy);
+        
+
+        if (izy != null && !izy.isEmpty()) {
+            // Utiliser forward au lieu de sendRedirect pour conserver les données dans la requête
+
+            RequestDispatcher dispatcher = request.getRequestDispatcher(izy);
+            dispatcher.forward(request, response);  // La requête et la réponse sont transmises à la page suivante
+        } else {
+            // Si aucun referer n'est trouvé, on redirige vers un formulaire par défaut
+            RequestDispatcher dispatcher = request.getRequestDispatcher("/defaultForm.jsp");
+            dispatcher.forward(request, response);
+        }
+    }
+
+
+
+
+//     private void handleModelView(ModelView modelView, HttpServletRequest request, HttpServletResponse response) 
+//     throws Exception {
+// RequestDispatcher dispatcher = request.getRequestDispatcher(modelView.getUrl());
+// for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
+//     request.setAttribute(entry.getKey(), entry.getValue());
+// }
+// dispatcher.forward(request, response);
+// }
+
 
     private String getUrlFromRequest(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
@@ -234,7 +281,11 @@ public class FrontControllerServlet extends HttpServlet {
             Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
             setObjectField(obj, obj.getClass().getDeclaredMethods(), field, value);
         }
-        Utility.validate(obj);
+        // Effectuer la validation et capturer les erreurs
+        ValidationError validationError = Utility.validate(obj);
+        if (validationError.hasErrors()) {
+            throw new ValidationException(validationError, obj);
+        }
 
         return obj;
     }

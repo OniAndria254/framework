@@ -125,13 +125,14 @@ public class Utility {
         return null;
     }
 
-    public static void validate(Object obj) throws IllegalArgumentException, IllegalAccessException {
+    public static ValidationError validate(Object obj) throws Exception {
+        ValidationError validationError = new ValidationError();
         Class<?> clazz = obj.getClass();
-
+    
         for (Field field : clazz.getDeclaredFields()) {
             field.setAccessible(true);
             Object value = field.get(obj);
-
+    
             // Validation @Numeric
             if (field.isAnnotationPresent(Numeric.class)) {
                 if (value != null && value instanceof String) {
@@ -139,17 +140,16 @@ public class Utility {
                     try {
                         // Vérifier si la chaîne contient uniquement des chiffres
                         if (!stringValue.matches("\\d+")) {
-                            throw new IllegalArgumentException("Le champ " + field.getName() + " doit contenir uniquement des chiffres.");
+                            validationError.addError(field.getName(), "Le champ " + field.getName() + " doit contenir uniquement des chiffres.", value);
                         }
                     } catch (Exception e) {
-                        throw new IllegalArgumentException("Le champ " + field.getName() + " doit être numérique.");
+                        validationError.addError(field.getName(), "Le champ " + field.getName() + " doit être numérique", value);
                     }
                 } else if (value != null) {
-                    throw new IllegalArgumentException("Le champ " + field.getName() + " doit être une chaîne contenant uniquement des chiffres.");
+                    validationError.addError(field.getName(), "Le champ " + field.getName() + " doit contenir uniquement des chiffres.", value);
                 }
             }
-
-
+    
             // Validation @Date
             if (field.isAnnotationPresent(Daty.class)) {
                 Daty dateAnnotation = field.getAnnotation(Daty.class);
@@ -160,53 +160,54 @@ public class Utility {
                     try {
                         sdf.parse((String) value);
                     } catch (ParseException e) {
-                        throw new IllegalArgumentException("Le champ " + field.getName() + " doit être une date au format " + format);
+                        validationError.addError(field.getName(), "Le champ " + field.getName() + " doit être une date au format " + format, value);
                     }
                 }
             }
-
+    
             // Validation @Range
             if (field.isAnnotationPresent(Range.class)) {
                 Range rangeAnnotation = field.getAnnotation(Range.class);
                 int min = rangeAnnotation.min();
                 int max = rangeAnnotation.max();
-
+    
                 if (value != null && value instanceof Integer) {
                     int intValue = (Integer) value;
                     if (intValue < min || intValue > max) {
-                        throw new IllegalArgumentException("Le champ " + field.getName() + " doit être compris entre " + min + " et " + max + ".");
+                        validationError.addError(field.getName(), "Le champ " + field.getName() + " doit être compris entre " + min + " et " + max + ".", value);
                     }
                 } else if (value != null) {
-                    throw new IllegalArgumentException("Le champ " + field.getName() + " doit être un entier pour utiliser @Range.");
+                    validationError.addError(field.getName(), "Le champ " + field.getName() + " doit être un entier pour utiliser @Range.", value);
                 }
             }
-
+    
             // Validation @Required
             if (field.isAnnotationPresent(Required.class)) {
                 if (value == null || (value instanceof String && ((String) value).trim().isEmpty())) {
-                    throw new IllegalArgumentException("Le champ " + field.getName() + " est obligatoire.");
+                    validationError.addError(field.getName(), "Le champ " + field.getName() + " est obligatoire.", value);
                 }
             }
-
+    
             // Validation @Length
             if (field.isAnnotationPresent(Length.class)) {
                 Length lengthAnnotation = field.getAnnotation(Length.class);
                 int min = lengthAnnotation.min();
                 int max = lengthAnnotation.max();
-
+    
                 if (value != null && value instanceof String) {
                     String stringValue = (String) value;
                     int length = stringValue.length();
-
+    
                     if (length < min || length > max) {
-                        throw new IllegalArgumentException("Le champ " + field.getName() + " doit avoir une longueur entre " + min + " et " + max + " caractères.");
+                        validationError.addError(field.getName(), "Le champ " + field.getName() + " doit avoir une longueur entre " + min + " et " + max + " caractères.", value);
                     }
                 } else if (value != null) {
-                    throw new IllegalArgumentException("Le champ " + field.getName() + " n'est pas de type String, mais il est annoté avec @Length.");
+                    validationError.addError(field.getName(), "Le champ " + field.getName() + " n'est pas de type String, mais il est annoté avec @Length.", value);
                 }
             }
-
-
         }
+    
+        return validationError;
     }
+    
 }

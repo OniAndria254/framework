@@ -4,19 +4,33 @@ import mg.itu.prom16.model.ValidationError;
 
 public class ValidationException extends Exception {
     private ValidationError validationError;
-    private Object formData;
+    private String errorUrl;
 
-    public ValidationException(ValidationError validationError, Object formData) {
+    public ValidationException() {
+        super("Validation échouée");
+    }
+
+    public String getErrorUrl() {
+        return errorUrl;
+    }
+
+    public void setErrorUrl(String errorUrl) {
+        this.errorUrl = errorUrl;
+    }
+
+    public ValidationException(ValidationError validationError) {
         super("Validation échouée");
         this.validationError = validationError;
-        this.formData = formData;
+    }
+
+    public ValidationException(ValidationError validationError, String errorUrl) {
+        super("Validation échouée");
+        this.validationError = validationError;
+        this.errorUrl = errorUrl;
     }
 
     public ValidationError getValidationError() {
         return validationError;
     }
 
-    public Object getFormData() {
-        return formData;
-    }
 }

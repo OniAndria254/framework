@@ -2,6 +2,7 @@ package mg.itu.prom16.model;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -210,4 +211,20 @@ public class Utility {
         return validationError;
     }
     
+    public static String extractPathFromUrl(String url) {
+        try {
+            URL refererUrl = new URL(url);
+            String absolutePath = refererUrl.getPath();
+            String[] split = absolutePath.split("/");
+            String path = "";
+            for (int i = 2; i < split.length; i++) {
+                path += "/" + split[i];
+            }
+            return path;
+        } catch (Exception e) {
+            // TODO: handle exception
+            e.printStackTrace();
+            return null;
+        }
+    }
 }

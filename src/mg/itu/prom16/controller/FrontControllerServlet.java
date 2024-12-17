@@ -4,6 +4,7 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 
@@ -15,6 +16,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import mg.itu.prom16.annotation.*;
+import mg.itu.prom16.exception.ValidationException;
 import mg.itu.prom16.model.*;
 import jakarta.servlet.annotation.MultipartConfig;
 
@@ -122,13 +125,66 @@ public class FrontControllerServlet extends HttpServlet {
             Mapping mapping = hashMap.get(url);
             try {
                 handleRequestMapping(mapping, request, response, isMultipart);
-            } catch (Exception e) {
+            }
+            catch (ValidationException ve) {
+                // En cas d'erreur de validation
+                // System.out.println("erreurrrrr");
+                
+                handleValidationException(ve, request, response); 
+            }
+            catch (Exception e) {
                 throw new ServletException(e.getCause() + " ;" + e.getMessage());
             }
         } else {
+            System.out.println("not found");
             handleNotFound(response);
         }
     }
+    
+    private void handleValidationException(ValidationException ve, HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        // Ajouter les valeurs précédentes et les erreurs à la requête
+        request.setAttribute("previousValues", ve.getValidationError().getPreviousValues());  // Assurez-vous que `getFormData()` retourne les données précédentes
+        request.setAttribute("errors", ve.getValidationError().getErrors());  // Les erreurs de validation
+
+        String errorUrl = ve.getErrorUrl();
+        // System.out.println(errorUrl);
+        if (errorUrl != null && !errorUrl.isEmpty()) {
+            // Si la méthode HTTP n'est pas GET, transformer en GET pour redirection
+            if (!"GET".equalsIgnoreCase(request.getMethod())) {
+                HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request) {
+                    @Override
+                    public String getMethod() {
+                        return "GET"; // Forcer la méthode GET
+                    }
+                };
+
+                // Forward vers l'URL d'erreur avec méthode GET
+                RequestDispatcher dispatcher = wrappedRequest.getRequestDispatcher(errorUrl);
+                dispatcher.forward(wrappedRequest, response);
+            } else {
+                // Si la méthode HTTP est déjà GET, simple forward
+                RequestDispatcher dispatcher = request.getRequestDispatcher(errorUrl);
+                dispatcher.forward(request, response);
+            }
+        } else {
+            // Si aucune URL d'erreur spécifiée, rediriger vers une page par défaut
+            response.sendRedirect(request.getContextPath() + "/defaultForm.jsp");
+        }
+    }
+
+
+
+
+//     private void handleModelView(ModelView modelView, HttpServletRequest request, HttpServletResponse response) 
+//     throws Exception {
+// RequestDispatcher dispatcher = request.getRequestDispatcher(modelView.getUrl());
+// for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
+//     request.setAttribute(entry.getKey(), entry.getValue());
+// }
+// dispatcher.forward(request, response);
+// }
+
 
     private String getUrlFromRequest(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
@@ -234,8 +290,6 @@ public class FrontControllerServlet extends HttpServlet {
             Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(Param.class).paramName() + "." + field.getName()), field.getType());
             setObjectField(obj, obj.getClass().getDeclaredMethods(), field, value);
         }
-        Utility.validate(obj);
-
         return obj;
     }
 
@@ -252,24 +306,28 @@ public class FrontControllerServlet extends HttpServlet {
 
     private void handleRegularMethod(Method method, Object controllerInstance, Object[] args, HttpServletRequest request, HttpServletResponse response) 
         throws Exception {
+            ValidationError validationError = new ValidationError();
+            for (Object object : args) {
+                validationError = Utility.validate(object);
+                
+            }
         Object result = method.invoke(controllerInstance, args);
 
         if (result instanceof String) {
             response.getWriter().println(result);
         } else if (result instanceof ModelView) {
-            handleModelView((ModelView) result, request, response);
+            ModelView modelView = (ModelView) result;
+            RequestDispatcher dispatcher = request.getRequestDispatcher(modelView.getUrl());
+            for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
+                request.setAttribute(entry.getKey(), entry.getValue());
+            }
+            if (validationError.hasErrors()) {
+                throw new ValidationException(validationError, modelView.getErrorUrl());
+            }
+            dispatcher.forward(request, response);
         } else {
             throw new ServletException("Type de retour non-géré");
         }
-    }
-
-    private void handleModelView(ModelView modelView, HttpServletRequest request, HttpServletResponse response) 
-            throws Exception {
-        RequestDispatcher dispatcher = request.getRequestDispatcher(modelView.getUrl());
-        for (Map.Entry<String, Object> entry : modelView.getData().entrySet()) {
-            request.setAttribute(entry.getKey(), entry.getValue());
-        }
-        dispatcher.forward(request, response);
     }
 
     private void handleNotFound(HttpServletResponse response) 

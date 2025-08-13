@@ -6,6 +6,8 @@ import java.net.URL;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +75,26 @@ public class Utility {
 
     // Méthode pour parser la valeur de la requête au type approprié
     public static Object parseValue(String value, Class<?> type) throws Exception {
-        if (type == int.class) {
+        if (value == null || value.trim().isEmpty()) {
+            return null; // Retourne null pour éviter les erreurs de conversion
+        }
+
+        if (type == int.class || type == Integer.class) {
             return Integer.parseInt(value);
-        } else if (type == double.class) {
+        } else if (type == double.class || type == Double.class) {
             return Double.parseDouble(value);
-        } else if (type == boolean.class) {
+        } else if (type == float.class || type == Float.class) {
+            return Float.parseFloat(value);
+        } else if (type == long.class || type == Long.class) {
+            return Long.parseLong(value);
+        } else if (type == boolean.class || type == Boolean.class) {
             return Boolean.parseBoolean(value);
+        } else if (type == LocalDateTime.class) {
+            // Format attendu : "yyyy-MM-dd'T'HH:mm"
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+            return LocalDateTime.parse(value, formatter);
         } else {
-            // Gérer d'autres types si nécessaire
-            return value;
+            return value; // Retourne la valeur telle quelle pour les chaînes et autres types
         }
     }
 
@@ -210,6 +223,79 @@ public class Utility {
     
         return validationError;
     }
+
+    public static boolean isValid(Object obj) throws Exception {
+        Class<?> clazz = obj.getClass();
+    
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true);
+            Object value = field.get(obj);
+    
+            // Numeric validation
+            if (field.isAnnotationPresent(Numeric.class)) {
+                if (value != null && value instanceof String) {
+                    String stringValue = (String) value;
+                    if (!stringValue.matches("\\d+")) {
+                        return false;
+                    }
+                } else if (value != null) {
+                    return false;
+                }
+            }
+    
+            // Date validation
+            if (field.isAnnotationPresent(Daty.class)) {
+                Daty dateAnnotation = field.getAnnotation(Daty.class);
+                String format = dateAnnotation.format();
+                if (value != null && value instanceof String) {
+                    SimpleDateFormat sdf = new SimpleDateFormat(format);
+                    sdf.setLenient(false);
+                    try {
+                        sdf.parse((String) value);
+                    } catch (ParseException e) {
+                        return false;
+                    }
+                }
+            }
+    
+            // Range validation
+            if (field.isAnnotationPresent(Range.class)) {
+                Range rangeAnnotation = field.getAnnotation(Range.class);
+                if (value != null && value instanceof Integer) {
+                    int intValue = (Integer) value;
+                    if (intValue < rangeAnnotation.min() || intValue > rangeAnnotation.max()) {
+                        return false;
+                    }
+                } else if (value != null) {
+                    return false;
+                }
+            }
+    
+            // Required validation
+            if (field.isAnnotationPresent(Required.class)) {
+                if (value == null || (value instanceof String && ((String) value).trim().isEmpty())) {
+                    return false;
+                }
+            }
+    
+            // Length validation
+            if (field.isAnnotationPresent(Length.class)) {
+                Length lengthAnnotation = field.getAnnotation(Length.class);
+                if (value != null && value instanceof String) {
+                    String stringValue = (String) value;
+                    int length = stringValue.length();
+                    if (length < lengthAnnotation.min() || length > lengthAnnotation.max()) {
+                        return false;
+                    }
+                } else if (value != null) {
+                    return false;
+                }
+            }
+        }
+    
+        return true;
+    }
+    
     
     public static String extractPathFromUrl(String url) {
         try {

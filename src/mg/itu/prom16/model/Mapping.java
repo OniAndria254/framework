@@ -1,6 +1,10 @@
 package mg.itu.prom16.model;
 import java.util.*;
 
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+
 
 public class Mapping {
     String classe;
@@ -52,7 +56,18 @@ public class Mapping {
                 return verbMethod;
             }
         }
-
+        verb = "Get";
+        for (VerbMethod verbMethod : verbMethods) {
+            if (verbMethod.getVerb().compareToIgnoreCase(verb) == 0) {
+                return verbMethod;
+            }
+        }
+        verb = "Post";
+        for (VerbMethod verbMethod : verbMethods) {
+            if (verbMethod.getVerb().compareToIgnoreCase(verb) == 0) {
+                return verbMethod;
+            }
+        }
         return null;
     }
     
